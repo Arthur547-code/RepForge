@@ -1,22 +1,34 @@
 import { useAppTheme } from "@/hooks/useAppTheme";
-import { TouchableOpacity, Text, ActivityIndicator } from "react-native";
+import type { ReactNode } from "react";
+import {
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  type TouchableOpacityProps,
+} from "react-native";
 
 interface ButtonProps {
-  label: string;
+  label?: string;
+  children?: ReactNode;
   onPress: () => void;
   variant?: "primary" | "secondary";
   loading?: boolean;
   disabled?: boolean;
   className?: string;
+  activeOpacity?: number;
+  hitSlop?: TouchableOpacityProps["hitSlop"];
 }
 
 export function Button({
   label,
+  children,
   onPress,
   variant = "primary",
   loading = false,
   disabled = false,
   className = "",
+  activeOpacity = 0.8,
+  hitSlop,
 }: ButtonProps) {
   const isPrimary = variant === "primary";
   const { getRawColor } = useAppTheme();
@@ -27,9 +39,10 @@ export function Button({
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={activeOpacity}
       onPress={onPress}
       disabled={disabled || loading}
+      hitSlop={hitSlop}
       className={`h-14 rounded-2xl items-center justify-center flex-row px-6 ${
         isPrimary
           ? "bg-lime active:opacity-90"
@@ -43,13 +56,15 @@ export function Button({
         */
         <ActivityIndicator color={isPrimary ? limeForeground : primaryText} />
       ) : (
-        <Text
-          className={`font-inter-bold text-base ${
-            isPrimary ? "text-lime-foreground" : "text-primary-text"
-          }`}
-        >
-          {label}
-        </Text>
+        children ?? (
+          <Text
+            className={`font-inter-bold text-base ${
+              isPrimary ? "text-lime-foreground" : "text-primary-text"
+            }`}
+          >
+            {label}
+          </Text>
+        )
       )}
     </TouchableOpacity>
   );

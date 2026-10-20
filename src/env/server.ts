@@ -11,7 +11,14 @@ const serverEnvSchema = z.object({
 
   GOOGLE_CLIENT_SECRET: z.string().min(1),
 
-  IMAGEKIT_PRIVATE_KEY: z.string().min(1),
+  // ImageKit is not used by the auth API yet, so keep it optional until image
+  // upload functionality is added.
+  IMAGEKIT_PRIVATE_KEY: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
 export const serverEnv = serverEnvSchema.parse({
@@ -26,4 +33,6 @@ export const serverEnv = serverEnvSchema.parse({
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
 
   IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
+
+  NODE_ENV: process.env.NODE_ENV,
 });

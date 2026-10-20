@@ -94,7 +94,7 @@ export default function WelcomeScreen() {
             <View className="gap-3">
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => router.push("/(auth)/sign-up" as any)}
+                onPress={() => router.push("/(auth)/sign-up")}
                 className="h-14 bg-[#C4F55A] rounded-2xl items-center justify-center active:opacity-90"
               >
                 <Text className="text-[#0B100D] font-inter-bold text-base">
@@ -104,7 +104,7 @@ export default function WelcomeScreen() {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => router.push("/(auth)/sign-in" as any)}
+                onPress={() => router.push("/(auth)/sign-in")}
                 className="h-14 bg-black/60 border border-white/15 rounded-2xl items-center justify-center active:bg-white/5"
               >
                 <Text className="text-white font-inter-bold text-base">
