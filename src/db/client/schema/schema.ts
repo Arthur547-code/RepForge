@@ -1,8 +1,3 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+// src/db/client/schema/schema.ts
 
-export const usersTable = sqliteTable("users", {
-  id: integer("id").primaryKey(),
-  name: text("name").notNull(),
-  age: integer("age").notNull(),
-  email: text("email").notNull().unique(),
-});
+export * from "./profile-schema";

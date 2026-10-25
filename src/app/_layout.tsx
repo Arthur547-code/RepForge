@@ -20,12 +20,15 @@ import "../global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth/auth-client";
 
+import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
+} from "react-native-reanimated";
+import { useProfile } from "@/features/profile/hooks/useProfileMutations";
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  // Fetch authentication status directly via Better Auth client state hooks
-  const { data: session, isPending: isAuthPending } = authClient.useSession();
-
   // Fix: Instantiating the QueryClient via useState preserves cache persistence across screen re-renders
   const [queryClient] = useState(
     () =>
@@ -33,6 +36,11 @@ export default function RootLayout() {
         defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } },
       }),
   );
+
+  configureReanimatedLogger({
+    level: ReanimatedLogLevel.warn,
+    strict: false, // Disables render-phase read/write warnings from library internals
+  });
 
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -53,35 +61,62 @@ export default function RootLayout() {
   const isReady = (fontsLoaded || !!fontError) && (dbMigrated || !!dbError);
 
   useEffect(() => {
-    if (isReady && !isAuthPending) {
+    if (isReady) {
       SplashScreen.hideAsync().catch((err) => {
         console.warn("Error hiding splash screen:", err);
       });
     }
-  }, [isReady, isAuthPending]);
+  }, [isReady]);
 
-  if (!isReady || isAuthPending) {
+  if (!isReady) {
     return null;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <View style={getActiveThemeVars(scheme)} className="flex-1 bg-canvas">
-        {/* Force status bar typography styling indicators based on app theme selection variables */}
-        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-
-        {/* Declarative screen restrictions natively handled by Expo Router tree wrappers */}
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected guard={!session}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-          </Stack.Protected>
-
-          <Stack.Protected guard={!!session}>
-            <Stack.Screen name="(app)" />
-          </Stack.Protected>
-        </Stack>
-      </View>
+      <RootNavigator scheme={scheme} />
     </QueryClientProvider>
+  );
+}
+
+function RootNavigator({ scheme }: { scheme: "light" | "dark" }) {
+  // Fetch authentication status directly via Better Auth client state hooks
+  const { data: session, isPending: isAuthPending } = authClient.useSession();
+
+  const { data: profile, isPending: isProfileLoading } = useProfile(
+    session?.user.id,
+  );
+
+  const isOnboardingComplete = !!profile?.onboardingCompletedAt;
+
+  if (isAuthPending) {
+    return null;
+  }
+
+  if (session && isProfileLoading) {
+    return null;
+  }
+
+  return (
+    <View style={getActiveThemeVars(scheme)} className="flex-1 bg-canvas">
+      {/* Force status bar typography styling indicators based on app theme selection variables */}
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+
+      {/* Declarative screen restrictions natively handled by Expo Router tree wrappers */}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+
+        <Stack.Protected guard={!!session && !isOnboardingComplete}>
+          <Stack.Screen name="(onboarding)" />
+        </Stack.Protected>
+
+        <Stack.Protected guard={!!session && isOnboardingComplete}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+      </Stack>
+    </View>
   );
 }

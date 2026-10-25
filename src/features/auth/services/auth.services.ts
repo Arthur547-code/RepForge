@@ -1,6 +1,9 @@
 // src/features/auth/services/auth.service.ts
 import { authClient } from "@/lib/auth/auth-client";
 import { SignInInput, SignUpInput } from "../schema/auth.schema";
+import { localDb } from "@/db/client";
+import { profiles } from "@/db/client/schema/profile-schema";
+import { eq } from "drizzle-orm";
 
 export const getAuthErrorMessage = (
   error: unknown,
@@ -73,11 +76,23 @@ export const authService = {
     return res.data;
   },
 
-  async signOut() {
+  async signOut(userId?: string) {
+    // 1. Session clear hone se PEHLE user ID snapshot karein
+    const activeUserId =
+      userId ?? (await authClient.getSession())?.data?.user?.id;
+
+    // 2. Server session revoke karein
     const res = await authClient.signOut();
     if (res.error) {
       throw new Error(getAuthErrorMessage(res.error, "Failed to sign out"));
     }
+
+    // 3. Captured ID ke zariye SQLite clean karein
+    if (activeUserId) {
+      await localDb.delete(profiles).where(eq(profiles.userId, activeUserId));
+      console.log("Deleted.");
+    }
+
     return res.data;
   },
 
