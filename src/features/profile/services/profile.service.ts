@@ -6,6 +6,9 @@ import { profiles } from "@/db/client/schema/profile-schema";
 import { ProfileInput } from "../schema/profile.schema";
 import { authClient } from "@/lib/auth/auth-client";
 import { clientEnv } from "@/env/client";
+import { syncQueueRepository } from "@/sync/queue/sync-queue.repository";
+import { syncEngine } from "@/sync/sync-engine/sync-engine";
+import { ServerProfileResponse } from "../types/profile.type";
 
 const BASE_URL = clientEnv.EXPO_PUBLIC_API_URL;
 
@@ -20,8 +23,11 @@ export const profileService = {
   },
 
   async completeOnboarding(userId: string, data: ProfileInput) {
+    const existingProfile = await this.getByUserId(userId);
     const profileId = Crypto.randomUUID();
     const now = new Date();
+
+    console.log("completeOnboarding Method Started.");
 
     // 1. Local SQLite Persistence (Single Atomic Query)
     const localProfile = await localDb
@@ -35,7 +41,7 @@ export const profileService = {
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: profiles.userId, // Explicit target for SQLite
+        target: profiles.userId,
         set: {
           ...data,
           onboardingCompletedAt: now,
@@ -45,59 +51,38 @@ export const profileService = {
       .returning()
       .get();
 
-    // 2. Send to Remote Backend (Postgres) via Better Auth $fetch
-    try {
-      const response = await authClient.$fetch(
-        `${BASE_URL}/api/profile/onboarding`,
-        {
-          method: "POST",
-          body: {
-            id: localProfile.id,
-            gender: data.gender,
-            experienceLevel: data.experienceLevel,
-            trainingGoal: data.trainingGoal,
-            weightUnit: data.weightUnit,
-          },
-        },
-      );
+    console.log(`Saved to Local Db __ ${localProfile}`);
 
-      if (response.error) {
-        console.warn(
-          `Server profile sync failed (${response.error.status}), local SQLite is updated.`,
-          response.error.message,
-          response.error.statusText,
-        );
-      }
-    } catch (networkError) {
-      console.warn(
-        "Offline: Remote sync skipped until reconnection.",
-        networkError,
-      );
-    }
+    // 2. Put into Persistent SQLite Sync Queue
+    await syncQueueRepository.enqueue({
+      userId,
+      entity: "profile",
+      operation: existingProfile ? "update" : "create",
+      entityId: localProfile.id,
+      payload: {
+        id: localProfile.id,
+        gender: data.gender,
+        experienceLevel: data.experienceLevel,
+        trainingGoal: data.trainingGoal,
+        weightUnit: data.weightUnit,
+      },
+    });
+
+    console.log(`Send to syncQueueRepository.enqueue.`);
+
+    // 3. Fire-and-forget: Sync Engine ko kick karein
+    // Agar internet hai toh turant chala jayega, nahi hai toh queue me safe rahega
+    syncEngine.sync().catch((err) => {
+      console.warn("Background sync failed to start:", err);
+    });
+
+    console.log(`syncEngine.sync() started.`);
 
     return localProfile;
   },
 
   async rehydrateProfileFromServer() {
     try {
-      type ServerProfileResponse = {
-        profile: {
-          id: string;
-          userId: string;
-          gender: "male" | "female" | "other" | "prefer_not_to_say";
-          experienceLevel: "beginner" | "intermediate" | "advanced";
-          trainingGoal:
-            | "muscle_gain"
-            | "strength"
-            | "fat_loss"
-            | "general_fitness";
-          weightUnit: "kg" | "lb";
-          onboardingCompletedAt: string | null;
-          createdAt: string;
-          updatedAt: string;
-        } | null;
-      };
-
       const response = await authClient.$fetch<ServerProfileResponse>(
         `${BASE_URL}/api/profile`,
       );

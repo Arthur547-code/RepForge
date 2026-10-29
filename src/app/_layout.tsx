@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "nativewind";
+import NetInfo from "@react-native-community/netinfo";
 
 import {
   useFonts,
@@ -25,6 +26,12 @@ import {
   ReanimatedLogLevel,
 } from "react-native-reanimated";
 import { useProfile } from "@/features/profile/hooks/useProfileMutations";
+
+// Sync Engine & Background Task imports
+
+import { registerBackgroundSync } from "@/sync/background-sync";
+import { syncEngine } from "@/sync/sync-engine/sync-engine";
+import { initNetworkSyncListener } from "@/sync/network-listener";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -57,8 +64,61 @@ export default function RootLayout() {
   const { colorScheme } = useColorScheme();
   const scheme = colorScheme ?? "dark";
 
-  // System validation flag checks structural integrity steps before dropping splash screens
-  const isReady = (fontsLoaded || !!fontError) && (dbMigrated || !!dbError);
+  // State to track startup sync and background task registration
+  const [isSyncReady, setIsSyncReady] = useState(false);
+
+  // 1. Startup Sync & Network Listener Lifecycle
+  useEffect(() => {
+    // SQLite migration complete hone ke baad hi sync queue access safe hota hai
+    if (!dbMigrated) {
+      if (dbError) {
+        console.warn(
+          "Local database migration failed; sync is disabled:",
+          dbError,
+        );
+      }
+      return;
+    }
+
+    let isMounted = true;
+
+    async function initSyncPipeline() {
+      try {
+        // Background sync task register karein
+        await registerBackgroundSync();
+
+        // Initial launch network check & sync
+        const netState = await NetInfo.fetch();
+        if (netState.isConnected && netState.isInternetReachable !== false) {
+          await syncEngine.sync();
+        }
+
+        console.log(`${netState} Sync Successed.`);
+      } catch (err) {
+        console.warn(
+          "Startup sync check failed (offline or network error):",
+          err,
+        );
+      } finally {
+        if (isMounted) {
+          setIsSyncReady(true);
+        }
+      }
+    }
+
+    initSyncPipeline();
+
+    // 2. Real-time network reconnect listener (App open rehte waqt reconnect par sync)
+    const unsubscribeNet = initNetworkSyncListener();
+
+    return () => {
+      isMounted = false;
+      unsubscribeNet();
+    };
+  }, [dbMigrated, dbError]);
+
+  // System validation flag checks structural integrity + startup sync before dropping splash screen
+  const isReady = (fontsLoaded || !!fontError) && dbMigrated && isSyncReady;
 
   useEffect(() => {
     if (isReady) {

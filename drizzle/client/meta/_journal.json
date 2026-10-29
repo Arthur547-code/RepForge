@@ -8,6 +8,27 @@
       "when": 1792766116083,
       "tag": "0000_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793029936053,
+      "tag": "0001_silly_forge",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793031903873,
+      "tag": "0002_safe_betty_brant",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793031926611,
+      "tag": "0003_sync",
+      "breakpoints": true
     }
   ]
 }
