@@ -29,56 +29,77 @@ export const profileService = {
 
     console.log("completeOnboarding Method Started.");
 
-    // 1. Local SQLite Persistence (Single Atomic Query)
-    const localProfile = await localDb
-      .insert(profiles)
-      .values({
-        id: profileId,
-        userId,
-        ...data,
-        onboardingCompletedAt: now,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: profiles.userId,
-        set: {
-          ...data,
-          onboardingCompletedAt: now,
-          updatedAt: now,
-        },
-      })
-      .returning()
-      .get();
+    try {
+      // 🚀 ड्रिजल ट्रांजैक्शन ब्लॉक की शुरुआत
+      const resultProfile = await localDb.transaction(async (tx) => {
+        // 1. Local SQLite Persistence (Single Atomic Query)
+        // 🟢 ध्यान दें: यहाँ localDb की जगह 'tx' का उपयोग किया है
+        const localProfile = await tx
+          .insert(profiles)
+          .values({
+            id: profileId,
+            userId,
+            ...data,
+            onboardingCompletedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: profiles.userId,
+            set: {
+              ...data,
+              onboardingCompletedAt: now,
+              updatedAt: now,
+            },
+          })
+          .returning()
+          .get();
 
-    console.log(`Saved to Local Db __ ${localProfile}`);
+        console.log(`Saved to Local Db __ ${localProfile}`);
 
-    // 2. Put into Persistent SQLite Sync Queue
-    await syncQueueRepository.enqueue({
-      userId,
-      entity: "profile",
-      operation: existingProfile ? "update" : "create",
-      entityId: localProfile.id,
-      payload: {
-        id: localProfile.id,
-        gender: data.gender,
-        experienceLevel: data.experienceLevel,
-        trainingGoal: data.trainingGoal,
-        weightUnit: data.weightUnit,
-      },
-    });
+        // 2. Put into Persistent SQLite Sync Queue
+        // 🟢 ध्यान दें: यहाँ हमने पैरामीटर में 'tx' को पास कर दिया है
+        await syncQueueRepository.enqueue(
+          {
+            userId,
+            entity: "profile",
+            operation: existingProfile ? "update" : "create",
+            entityId: localProfile.id,
+            payload: {
+              id: localProfile.id,
+              gender: data.gender,
+              experienceLevel: data.experienceLevel,
+              trainingGoal: data.trainingGoal,
+              weightUnit: data.weightUnit,
+            },
+          },
+          tx,
+        ); // 👈 'tx' यहाँ पास किया गया है
 
-    console.log(`Send to syncQueueRepository.enqueue.`);
+        console.log(`Send to syncQueueRepository.enqueue.`);
 
-    // 3. Fire-and-forget: Sync Engine ko kick karein
-    // Agar internet hai toh turant chala jayega, nahi hai toh queue me safe rahega
-    syncEngine.sync().catch((err) => {
-      console.warn("Background sync failed to start:", err);
-    });
+        // ट्रांजैक्शन के अंत में प्रोफाइल डेटा वापस भेजें
+        return localProfile;
+      });
 
-    console.log(`syncEngine.sync() started.`);
+      // 3. Fire-and-forget: Sync Engine ko kick karein
+      // Agar internet hai toh turant chala jayega, nahi hai toh queue me safe rahega
+      // ⚡ इसे ट्रांजैक्शन ब्लॉक से बाहर रखा गया है क्योंकि सिंक इंजन का काम डेटाबेस में लिखने के बाद का है
+      syncEngine.sync().catch((err) => {
+        console.warn("Background sync failed to start:", err);
+      });
 
-    return localProfile;
+      console.log(`syncEngine.sync() started.`);
+
+      return resultProfile;
+    } catch (error) {
+      // 🛑 अगर 1 या 2 नंबर स्टेप में कोई भी एरर आता है, तो ड्रिजल सब कुछ रोलबैक कर देगा
+      console.error(
+        "completeOnboarding failed! Transaction rolled back:",
+        error,
+      );
+      throw error;
+    }
   },
 
   async rehydrateProfileFromServer() {

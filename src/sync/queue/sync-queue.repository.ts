@@ -20,11 +20,15 @@ export const syncQueueRepository = {
   /**
    * 1. Nayi mutation ko queue me insert karta hai
    */
-  async enqueue(params: EnqueueParams): Promise<SyncQueueRow> {
+  // syncQueueRepository के अंदर enqueue मेथड को इस तरह बदलें:
+async enqueue(params: EnqueueParams, tx?: any): Promise<SyncQueueRow> {
     const now = new Date();
     const id = Crypto.randomUUID();
 
-    const [inserted] = await localDb
+    // 🟢 यहाँ चेक करें: अगर बाहर से 'tx' पास हुआ है तो उसका उपयोग करें, नहीं तो 'localDb' यूज़ करें
+    const dbClient = tx ?? localDb;
+
+    const [inserted] = await dbClient
       .insert(syncQueue)
       .values({
         id,
@@ -44,6 +48,7 @@ export const syncQueueRepository = {
 
     return inserted;
   },
+
 
   /**
    * 2. Processing ke liye pending rows fetch karta hai (FIFO + Due Retry Time)
