@@ -67,6 +67,7 @@
     "db:gen-server": "drizzle-kit generate --config=drizzle.server.config.ts",
     "db:push-server": "drizzle-kit migrate --config=drizzle.server.config.ts",
     "db:seed": "tsx db/server/seed.ts",
+    "db:seed-exercises": "node --env-file=.env --import tsx scripts/seed-server-exercises.ts",
     "db:studio-client": "drizzle-kit studio --config=drizzle.client.config.ts",
     "db:studio-server": "drizzle-kit studio --config=drizzle.server.config.ts",
     "lint": "expo lint"

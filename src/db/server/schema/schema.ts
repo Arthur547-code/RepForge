@@ -2,5 +2,5 @@
 
 export * from "./auth-schema";
 export * from "./profile-schema";
-// export * from "./exercise";
+export * from "./exercise-schema";
 // export * from "./workout";

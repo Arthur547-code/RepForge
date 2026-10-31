@@ -2,3 +2,4 @@
 
 export * from "./profile-schema";
 export * from "./sync-queue-schema"
+export * from "./exercise-schema"
