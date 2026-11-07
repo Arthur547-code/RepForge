@@ -1,3 +1,5 @@
+// src\features\exercises\types\exercise-api.type.ts
+
 export type ExerciseApiItem = {
   id: string;
   sourceId: string | null;

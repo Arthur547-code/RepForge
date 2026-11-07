@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
 
     completeOnboarding(data, {
       onSuccess: () => {
-        router.replace("/(app)");
+        router.replace("/(app)/(tabs)");
       },
       onError: (err) => {
         console.error("Failed to complete onboarding:", err);

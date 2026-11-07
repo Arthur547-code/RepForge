@@ -26,6 +26,7 @@ import {
   ReanimatedLogLevel,
 } from "react-native-reanimated";
 import { useProfile } from "@/features/profile/hooks/useProfileMutations";
+import { appInitializationService } from "@/features/app/services/app-initialization.service";
 
 // Sync Engine & Background Task imports
 
@@ -63,6 +64,7 @@ export default function RootLayout() {
 
   const { colorScheme } = useColorScheme();
   const scheme = colorScheme ?? "dark";
+  const { data: session, isPending: isAuthPending } = authClient.useSession();
 
   // State to track startup sync and background task registration
   const [isSyncReady, setIsSyncReady] = useState(false);
@@ -70,7 +72,7 @@ export default function RootLayout() {
   // 1. Startup Sync & Network Listener Lifecycle
   useEffect(() => {
     // SQLite migration complete hone ke baad hi sync queue access safe hota hai
-    if (!dbMigrated) {
+    if (!dbMigrated || isAuthPending) {
       if (dbError) {
         console.warn(
           "Local database migration failed; sync is disabled:",
@@ -87,13 +89,18 @@ export default function RootLayout() {
         // Background sync task register karein
         await registerBackgroundSync();
 
+        // Authenticated app data: PostgreSQL -> API -> local SQLite.
+        if (session?.user.id) {
+          await appInitializationService.initialize();
+        }
+
         // Initial launch network check & sync
         const netState = await NetInfo.fetch();
         if (netState.isConnected && netState.isInternetReachable !== false) {
           await syncEngine.sync();
         }
 
-        console.log(`${netState} Sync Successed.`);
+        console.log("App initialization completed.");
       } catch (err) {
         console.warn(
           "Startup sync check failed (offline or network error):",
@@ -115,7 +122,7 @@ export default function RootLayout() {
       isMounted = false;
       unsubscribeNet();
     };
-  }, [dbMigrated, dbError]);
+  }, [dbMigrated, dbError, isAuthPending, session?.user.id]);
 
   // System validation flag checks structural integrity + startup sync before dropping splash screen
   const isReady = (fontsLoaded || !!fontError) && dbMigrated && isSyncReady;

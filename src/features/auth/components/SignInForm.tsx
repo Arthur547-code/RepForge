@@ -6,7 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ionicons } from "@expo/vector-icons";
 
-import { useAppTheme } from "@/hooks/useAppTheme";
+import { useAppTheme } from "@/theme/hooks/useAppTheme";
 import { Button } from "@/components/ui/Button";
 import { signInSchema, SignInInput } from "../schema/auth.schema";
 

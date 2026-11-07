@@ -1,6 +1,6 @@
 // src\features\auth\components\SignOutButton.tsx
 import { Button } from "@/components/ui/Button";
-import { useAppTheme } from "@/hooks/useAppTheme";
+import { useAppTheme } from "@/theme/hooks/useAppTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "react-native";
 import { useSignOutMutation } from "../hooks/useAuthMutations";

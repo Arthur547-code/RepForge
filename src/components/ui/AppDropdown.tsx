@@ -9,7 +9,7 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAppTheme } from "@/hooks/useAppTheme";
+import { useAppTheme } from "@/theme/hooks/useAppTheme";
 
 export interface DropdownOption<T extends string> {
   label: string;

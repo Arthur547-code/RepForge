@@ -1,17 +1,47 @@
-// src/features/exercises/services/exercise-sync.service.ts
+// src/features/exercises/services/exercise.service.ts
 import { localDb } from "@/db/client";
 import { sql } from "drizzle-orm";
 import {
   exercises,
+  LocalExercise,
   NewLocalExercise,
 } from "@/db/client/schema/exercise-schema";
 import { authClient } from "@/lib/auth/auth-client";
 import { clientEnv } from "@/env/client";
 import { ExerciseListResponse } from "../types/exercise-api.type";
+import { exerciseRepository } from "../repositories/exercise.repository";
 
 const BASE_URL = clientEnv.EXPO_PUBLIC_API_URL;
 
-export const exerciseSyncService = {
+export interface ParsedExercise extends Omit<
+  LocalExercise,
+  "images" | "secondaryMuscles" | "instructions"
+> {
+  images: string[];
+  secondaryMuscles: string[];
+  instructions: string[];
+}
+
+function parseJsonArray(value: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function transformExercise(row: LocalExercise): ParsedExercise {
+  return {
+    ...row,
+    images: parseJsonArray(row.images),
+    secondaryMuscles: parseJsonArray(row.secondaryMuscles),
+    instructions: parseJsonArray(row.instructions),
+  };
+}
+
+export const exerciseService = {
   async syncExercisesToLocal(): Promise<void> {
     try {
       const response = await authClient.$fetch<ExerciseListResponse>(
@@ -79,5 +109,27 @@ export const exerciseSyncService = {
         error,
       );
     }
+  },
+
+  async getPaginatedExercises(params: {
+    search?: string;
+    muscle?: string;
+    page: number;
+    pageSize: number;
+  }): Promise<ParsedExercise[]> {
+    const offset = params.page * params.pageSize;
+    const rawList = await exerciseRepository.findMany({
+      search: params.search,
+      muscle: params.muscle,
+      limit: params.pageSize,
+      offset,
+    });
+
+    return rawList.map(transformExercise);
+  },
+
+  async getAvailableMuscleFilters(): Promise<string[]> {
+    const muscles = await exerciseRepository.findDistinctMuscles();
+    return ["all", ...muscles];
   },
 };

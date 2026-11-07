@@ -1,11 +1,17 @@
-import { Stack } from 'expo-router'
+import { Stack } from "expo-router";
 
-const AppLayout = () => {
+export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-      </Stack>
-  )
-}
+      <Stack.Screen name="(tabs)" />
 
-export default AppLayout
+      {/* <Stack.Screen
+        name="(modal)"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      /> */}
+    </Stack>
+  );
+}

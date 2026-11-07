@@ -1,10 +1,10 @@
-import { useAppTheme } from "@/hooks/useAppTheme";
+import { useAppTheme } from "@/theme/hooks/useAppTheme";
 import type { ReactNode } from "react";
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   ActivityIndicator,
-  type TouchableOpacityProps,
+  type PressableProps,
 } from "react-native";
 
 interface ButtonProps {
@@ -16,7 +16,7 @@ interface ButtonProps {
   disabled?: boolean;
   className?: string;
   activeOpacity?: number;
-  hitSlop?: TouchableOpacityProps["hitSlop"];
+  hitSlop?: PressableProps["hitSlop"];
 }
 
 export function Button({
@@ -38,11 +38,15 @@ export function Button({
   const primaryText = getRawColor("primaryText");
 
   return (
-    <TouchableOpacity
-      activeOpacity={activeOpacity}
+    <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       hitSlop={hitSlop}
+      style={({ pressed }) =>
+        pressed && !disabled && !loading
+          ? { opacity: activeOpacity }
+          : undefined
+      }
       className={`h-14 rounded-2xl items-center justify-center flex-row px-6 ${
         isPrimary
           ? "bg-lime active:opacity-90"
@@ -66,6 +70,6 @@ export function Button({
           </Text>
         )
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }

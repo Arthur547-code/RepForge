@@ -2,7 +2,7 @@
 import React from "react";
 import { View, Text, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAppTheme } from "@/hooks/useAppTheme";
+import { useAppTheme } from "@/theme/hooks/useAppTheme";
 import { Button } from "@/components/ui/Button";
 import { useSocialSignInMutation } from "../hooks/useAuthMutations";
 
